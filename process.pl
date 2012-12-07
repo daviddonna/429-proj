@@ -1,8 +1,8 @@
 use strict;
 
-open(LTL, 'ltl.txt');
+open(LTL, 'assert.txt');
 
 for (<LTL>) {
-  print "\n$_" and next if /^\/\*.*?\*\/$/ or /^$/;
+  print $_ and next if /^\/\*.*?\*\/$/ or /^$/;
   print `spin -f '$_'`;
 }

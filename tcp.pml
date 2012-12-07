@@ -72,7 +72,7 @@ int c_do_close = 0;
 int c_do_exit = 0;
 int c_do_rst = 0;
 int c_do_send = 0;
-int c_timeout = 1;
+int c_do_timeout = 1;
 
 /* 
  * Variables for assertions/debugging that record the abstract state of each
@@ -110,7 +110,7 @@ proctype Client ()
     :: (c_do_exit) ->
        goto exit;
     fi;
-    assert(false);
+    assert(false);              /* IMM_01 */
 
   listen:
     cstate = LISTEN;
@@ -128,15 +128,15 @@ proctype Client ()
        seq++;
        goto syn_sent;
     fi;
-    assert(false);
+    assert(false);              /* IMM_02 */
 
   syn_sent:
     cstate = SYN_SENT;
     printf("c: syn_sent %d\n", seq);
     if
     :: toclient?msg,inseq,inack ->
-       assert(inack == seq);
-       assert(msg == SYN_ACK || msg == SYN);
+       assert(inack == seq);    /* IMM_03 */
+       assert(msg == SYN_ACK || msg == SYN); /* IMM_04 */
        if
 
        /* SYN + ACK / ACK -> established*/
@@ -157,7 +157,7 @@ proctype Client ()
     :: (c_do_close) ->
        goto closed;
     fi;
-    assert(false);
+    assert(false);              /* IMM_05 */
     
   syn_received:
     cstate = SYN_RECEIVED;
@@ -166,8 +166,8 @@ proctype Client ()
 
     /* RST / -- -> listen */
     :: toclient?msg,inseq,inack ->
-       assert(inack == seq);
-       assert(msg == RST);
+       assert(inack == seq);    /* IMM_06 */
+       assert(msg == RST);      /* IMM_07 */
        ack = inseq + 1;
        goto listen;
 
@@ -178,7 +178,7 @@ proctype Client ()
        seq++;
        goto fin_wait_1;
     fi;
-    assert(false);
+    assert(false);              /* IMM_08 */
     
   established:
     cstate = ESTABLISHED;
@@ -202,8 +202,8 @@ proctype Client ()
 
        /* ACK / -- -> established */
        :: toclient?msg,inseq,inack ->
-          assert(inack == seq);
-          assert(msg == ACK);
+          assert(inack == seq); /* IMM_09 */
+          assert(msg == ACK);   /* IMM_10 */
           ack = inseq;
           c_do_close = 1;
           goto established;
@@ -215,15 +215,15 @@ proctype Client ()
           goto established;
        fi;
     fi;
-    assert(false);
+    assert(false);              /* IMM_11 */
     
   fin_wait_1:
     cstate = FIN_WAIT_1;
     printf("c: fin_wait_1 %d\n", seq);
     if
     :: toclient?msg,inseq,inack ->
-       assert(inack == seq);
-       assert(msg == ACK || msg == FIN);
+       assert(inack == seq);    /* IMM_12 */
+       assert(msg == ACK || msg == FIN); /* IMM_13 */
        if
 
        /* ACK / -- -> fin_wait_2 */
@@ -245,7 +245,7 @@ proctype Client ()
           goto time_wait;
        fi;
     fi;
-    assert(false);
+    assert(false);              /* IMM_14 */
     
   fin_wait_2:
     cstate = FIN_WAIT_2;
@@ -254,18 +254,18 @@ proctype Client ()
 
     /* FIN / ACK -> time_wait */
     :: toclient?msg,inseq,inack ->
-       assert(inack == seq);
-       assert(msg == FIN);
+       assert(inack == seq);    /* IMM_15 */
+       assert(msg == FIN);      /* IMM_16 */
        ack = inseq + 1;
        toserver!ACK,seq,ack;
        goto time_wait;
     fi;
-    assert(false);
+    assert(false);              /* IMM_17 */
 
   close_wait:
     cstate = CLOSE_WAIT;
     printf("c: close_wait %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_18 */
     
   closing:
     cstate = CLOSING;
@@ -274,16 +274,16 @@ proctype Client ()
 
     /* ACK / -- -> time_wait */
     :: toclient?msg,inseq,inack ->
-       assert(inack == seq);
-       assert(msg == ACK);
+       assert(inack == seq);    /* IMM_19 */
+       assert(msg == ACK);      /* IMM_20 */
        goto time_wait;
     fi;
-    assert(false);
+    assert(false);              /* IMM_21 */
 
   last_ack:
     cstate = LAST_ACK;
     printf("c: last_ack %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_22 */
     
   time_wait:
     cstate = TIME_WAIT;
@@ -291,11 +291,11 @@ proctype Client ()
     if
 
     /* timeout / ACK -> closed */
-    :: (c_timeout) -> 
+    :: (c_do_timeout) -> 
        toserver!ACK,ack,seq;
        goto closed;
     fi;
-    assert(false);
+    assert(false);              /* IMM_23 */
 
   exit:
     cstate = EXIT;
@@ -337,7 +337,7 @@ proctype Server ()
     :: (s_do_exit) ->
        goto exit;
     fi;
-    assert(false);
+    assert(false);              /* IMM_24 */
 
   listen:
     sstate = LISTEN;
@@ -346,14 +346,14 @@ proctype Server ()
 
     /* SYN / SYN + ACK */
     :: toserver?msg,inseq,inack ->
-       assert(msg == SYN);
+       assert(msg == SYN);      /* IMM_25 */
        ack = inseq + 1;
        printf("<-- SYN_ACK %d %d\n", seq, ack);
        toclient!SYN_ACK,seq,ack;
        seq++;
        goto syn_received;
     fi;
-    assert(false);
+    assert(false);              /* IMM_26 */
 
   syn_sent:
     sstate = SYN_SENT;
@@ -362,14 +362,14 @@ proctype Server ()
 
     /* SYN / SYN + ACK */
     :: toserver?msg,inseq,inack ->
-       assert(msg == SYN);
+       assert(msg == SYN);      /* IMM_27 */
        ack = inseq + 1;
        printf("<-- SYN_ACK %d %d\n", seq, ack);
        toclient!SYN_ACK,seq,ack;
        seq++;
        goto established;
     fi;
-    assert(false);
+    assert(false);              /* IMM_28 */
     
   syn_received:
     sstate = SYN_RECEIVED;
@@ -378,20 +378,20 @@ proctype Server ()
 
     /* ACK / -- */
     :: toserver?msg,inseq,inack ->
-       assert(msg == ACK);
-       assert(inack == seq);
+       assert(msg == ACK);      /* IMM_29 */
+       assert(inack == seq);    /* IMM_30 */
        ack = inseq;
        goto established;
     fi;
-    assert(false);
+    assert(false);              /* IMM_31 */
     
   established:
     sstate = ESTABLISHED;
     printf("s: established %d\n", seq);
     if
     :: toserver?msg,inseq,inack ->
-       assert(msg == FIN || msg == DATA);
-       assert(inack == seq);
+       assert(msg == FIN || msg == DATA); /* IMM_32 */
+       assert(inack == seq);              /* IMM_33 */
        ack = inseq + 1;
        if
 
@@ -413,17 +413,17 @@ proctype Server ()
        toserver!l_msg,l_seq,l_ack;
        goto established;
     fi;
-    assert(false);
+    assert(false);              /* IMM_34 */
     
   fin_wait_1:
     sstate = FIN_WAIT_1;
     printf("s: fin_wait_1 %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_35 */
     
   fin_wait_2:
     sstate = FIN_WAIT_2;
     printf("s: fin_wait_2 %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_36 */
     
   close_wait:
     sstate = CLOSE_WAIT;
@@ -436,12 +436,12 @@ proctype Server ()
        seq++;
        goto last_ack;
     fi;
-    assert(false);
+    assert(false);              /* IMM_37 */
     
   closing:
     sstate = CLOSING;
     printf("s: closing %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_38 */
     
   last_ack:
     sstate = LAST_ACK;
@@ -450,17 +450,17 @@ proctype Server ()
 
     /* ACK / -- */
     :: toserver?msg,inseq,inack;
-       assert(msg == ACK);
-       assert(inack == seq);
+       assert(msg == ACK);      /* IMM_39 */
+       assert(inack == seq);    /* IMM_40 */
        ack = inseq;
        goto closed;
     fi;
-    assert(false);
+    assert(false);              /* IMM_41 */
     
   time_wait:
     sstate = TIME_WAIT;
     printf("s: time_wait %d\n", seq);
-    assert(false);
+    assert(false);              /* IMM_42 */
 
   exit:
     sstate = EXIT;
