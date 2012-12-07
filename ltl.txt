@@ -1,17 +1,22 @@
+/* states that should never happen */
 c_close_wait
 c_last_ack
 s_fin_wait_1
 s_fin_wait_2
 s_closing
 s_time_wait
-cclosed && <>!cclosed
-sclosed && <>!sclosed
-c_time_wait && <>c_closing
-c_time_wait && <>c_fin_wait_2
-c_time_wait && <>c_fin_wait_1
-c_fin_wait_2 && <>c_fin_wait_1
-c_fin_wait_1 && <>c_established
-c_fin_wait_1 && <>c_syn_received
-c_established_connection && <>c_syn_received
-s_last_ack && <>s_close_wait
-s_close_wait && <>s_established_connection
+
+/* leaving the exit state */
+c_exit && <>!c_exit
+s_exit && <>!s_exit
+
+/* moving backwards */
+/* c_time_wait && <>c_closing */
+/* c_time_wait && <>c_fin_wait_2 */
+/* c_time_wait && <>c_fin_wait_1 */
+/* c_fin_wait_2 && <>c_fin_wait_1 */
+/* c_fin_wait_1 && <>c_established */
+/* c_fin_wait_1 && <>c_syn_received */
+/* c_established_connection && <>c_syn_received */
+/* s_last_ack && <>s_close_wait */
+/* s_close_wait && <>s_established_connection */

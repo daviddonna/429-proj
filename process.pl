@@ -3,5 +3,6 @@ use strict;
 open(LTL, 'ltl.txt');
 
 for (<LTL>) {
-  print `spin -f $_`
+  print "\n$_" and next if /^\/\*.*?\*\/$/ or /^$/;
+  print `spin -f '$_'`;
 }

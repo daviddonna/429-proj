@@ -9,30 +9,33 @@
 #define CLOSING       8
 #define LAST_ACK      9
 #define TIME_WAIT     10
+#define EXIT          11
 
-#define c_closed cstate == CLOSED
-#define c_listen cstate == LISTEN
-#define c_syn_sent cstate == SYN_SENT
-#define c_syn_received cstate == SYN_RECEIVED
-#define c_established cstate == ESTABLISHED
-#define c_fin_wait_1 cstate == FIN_WAIT_1
-#define c_fin_wait_2 cstate == FIN_WAIT_2
-#define c_close_wait cstate == CLOSE_WAIT
-#define c_closing cstate == CLOSING
-#define c_last_ack cstate == LAST_ACK
-#define c_time_wait cstate == TIME_WAIT
+#define c_closed (cstate == CLOSED)
+#define c_listen (cstate == LISTEN)
+#define c_syn_sent (cstate == SYN_SENT)
+#define c_syn_received (cstate == SYN_RECEIVED)
+#define c_established (cstate == ESTABLISHED)
+#define c_fin_wait_1 (cstate == FIN_WAIT_1)
+#define c_fin_wait_2 (cstate == FIN_WAIT_2)
+#define c_close_wait (cstate == CLOSE_WAIT)
+#define c_closing (cstate == CLOSING)
+#define c_last_ack (cstate == LAST_ACK)
+#define c_time_wait (cstate == TIME_WAIT)
+#define c_exit (cstate == EXIT)
 
-#define s_closed sstate == CLOSED
-#define s_listen sstate == LISTEN
-#define s_syn_sent sstate == SYN_SENT
-#define s_syn_received sstate == SYN_RECEIVED
-#define s_established sstate == ESTABLISHED
-#define s_fin_wait_1 sstate == FIN_WAIT_1
-#define s_fin_wait_2 sstate == FIN_WAIT_2
-#define s_close_wait sstate == CLOSE_WAIT
-#define s_closing sstate == CLOSING
-#define s_last_ack sstate == LAST_ACK
-#define s_time_wait sstate == TIME_WAIT
+#define s_closed (sstate == CLOSED)
+#define s_listen (sstate == LISTEN)
+#define s_syn_sent (sstate == SYN_SENT)
+#define s_syn_received (sstate == SYN_RECEIVED)
+#define s_established (sstate == ESTABLISHED)
+#define s_fin_wait_1 (sstate == FIN_WAIT_1)
+#define s_fin_wait_2 (sstate == FIN_WAIT_2)
+#define s_close_wait (sstate == CLOSE_WAIT)
+#define s_closing (sstate == CLOSING)
+#define s_last_ack (sstate == LAST_ACK)
+#define s_time_wait (sstate == TIME_WAIT)
+#define s_exit (sstate == EXIT)
 
 mtype = {
       SYN,
@@ -42,7 +45,7 @@ mtype = {
       SYN_ACK,
       FIN_ACK,
       DATA
-}
+};
 
 /* 
    c?FOO,ack,eval(seq);  // their ack should anticipate your next message
@@ -53,16 +56,18 @@ mtype = {
  */
 
 /*                       CTL    SEQ  ACK */
-chan toclient = [1] of { mtype, int, int }
-chan toserver = [1] of { mtype, int, int }
+chan toclient = [1] of { mtype, int, int };
+chan toserver = [1] of { mtype, int, int };
 
-int s_listen = 1;
-int s_connect = 0;
-int s_close = 1;
-int c_connect = 1;
-int c_close = 0;
-int c_rst = 0;
-int c_send = 0;
+int s_do_listen = 1;
+int s_do_connect = 0;
+int s_do_close = 1;
+int s_do_exit = 0;
+int c_do_connect = 1;
+int c_do_close = 0;
+int c_do_exit = 0;
+int c_do_rst = 0;
+int c_do_send = 0;
 int c_timeout = 1;
 int sstate, cstate;
 
@@ -79,21 +84,29 @@ proctype Client ()
   int l_seq;
   int l_ack;
 
-  /* initial connection */
-  (c_connect);
-  printf("c: initial connection\n");
-  toserver!SYN,seq,0;
-  printf("--> SYN %d %d\n", seq, ack);
-  seq++;
-  goto syn_sent;
+  closed:
+    cstate = CLOSED;
+    printf("c: closed %d\n", seq);
+
+    if
+    :: (c_do_connect) ->
+       c_do_connect = 0;
+       printf("c: initial connection\n");
+       toserver!SYN,seq,0;
+       printf("--> SYN %d %d\n", seq, ack);
+       seq++;
+       goto syn_sent;
+    :: (c_do_exit) ->
+       goto exit;
+    fi;
 
   listen:
     cstate = LISTEN;
     printf("c: listen %d\n", seq);
     if
-    :: (c_close) ->
+    :: (c_do_close) ->
        goto closed;
-    :: (c_send) ->
+    :: (c_do_send) ->
        printf("--> SYN %d %d\n", seq, ack);
        toserver!SYN,seq,ack;
        seq++;
@@ -120,7 +133,7 @@ proctype Client ()
           seq = seq + 1;
           goto syn_received;
        fi;
-    :: (c_close) ->
+    :: (c_do_close) ->
        goto closed;
     fi;
     
@@ -133,7 +146,7 @@ proctype Client ()
        assert(msg == RST);
        ack = inseq + 1;
        goto listen;
-    :: (c_close) ->
+    :: (c_do_close) ->
        printf("--> FIN %d %d\n", seq, ack);
        toserver!FIN,seq,ack;
        seq++;
@@ -144,7 +157,7 @@ proctype Client ()
     cstate = ESTABLISHED;
     printf("c: established %d\n", seq);
     if
-    :: (c_close) ->
+    :: (c_do_close) ->
        printf("--> FIN %d %d\n", seq, ack);
        toserver!FIN,seq,ack;
        seq++;
@@ -159,7 +172,7 @@ proctype Client ()
           assert(inack == seq);
           assert(msg == ACK);
           ack = inseq;
-          c_close = 1;
+          c_do_close = 1;
           goto established;
        :: timeout ->
           printf("resending\n");
@@ -237,10 +250,9 @@ proctype Client ()
        goto closed;
     fi;
 
-  closed:
-    cstate = CLOSED;
-    printf("c: closed %d\n", seq);
-    
+  exit:
+    cstate = EXIT;
+    printf("c: done %d %d\n", seq, ack);
 }
 
 proctype Server ()
@@ -254,15 +266,23 @@ proctype Server ()
   int l_seq;
   int l_ack;
 
-  if
-  :: (s_listen);
-     goto listen;
-  :: (s_connect);
-     printf("<-- %d %d\n", seq, ack);
-     toclient!SYN,seq,ack;
-     seq++;
-     goto syn_sent;
-  fi;
+  closed:
+    sstate = CLOSED;
+    printf("s: closed %d\n", seq);
+    
+    if
+    :: (s_do_listen) ->
+       s_do_listen = 0;
+       goto listen;
+    :: (s_do_connect) ->
+       s_do_connect = 0;
+       printf("<-- %d %d\n", seq, ack);
+       toclient!SYN,seq,ack;
+       seq++;
+       goto syn_sent;
+    :: (s_do_exit) ->
+       goto exit;
+    fi;
 
   listen:
     sstate = LISTEN;
@@ -327,7 +347,7 @@ proctype Server ()
     sstate = CLOSE_WAIT;
     printf("s: close_wait %d\n", seq);
     if
-    :: (s_close) ->
+    :: (s_do_close) ->
        toclient!FIN,seq,ack;
        seq++;
        goto last_ack;
@@ -349,167 +369,13 @@ proctype Server ()
     sstate = TIME_WAIT;
     printf("s: time_wait %d\n", seq);
 
-  closed:
-    sstate = CLOSED;
-    printf("s: closed %d\n", seq);
-    
+  exit:
+    sstate = EXIT;
+    printf("s: exit %d\n", seq);
 }
 
 init
 {
   run Client();
   run Server();
-}
-never  {    /* c_close_wait */
-accept_init:
-T0_init:
-	if
-	:: ((c_close_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_last_ack */
-accept_init:
-T0_init:
-	if
-	:: ((c_last_ack)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_fin_wait_1 */
-accept_init:
-T0_init:
-	if
-	:: ((s_fin_wait_1)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_fin_wait_2 */
-accept_init:
-T0_init:
-	if
-	:: ((s_fin_wait_2)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_closing */
-accept_init:
-T0_init:
-	if
-	:: ((s_closing)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_time_wait */
-accept_init:
-T0_init:
-	if
-	:: ((s_time_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* cclosed */
-accept_init:
-T0_init:
-	if
-	:: ((cclosed)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* sclosed */
-accept_init:
-T0_init:
-	if
-	:: ((sclosed)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_time_wait */
-accept_init:
-T0_init:
-	if
-	:: ((c_time_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_time_wait */
-accept_init:
-T0_init:
-	if
-	:: ((c_time_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_time_wait */
-accept_init:
-T0_init:
-	if
-	:: ((c_time_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_fin_wait_2 */
-accept_init:
-T0_init:
-	if
-	:: ((c_fin_wait_2)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_fin_wait_1 */
-accept_init:
-T0_init:
-	if
-	:: ((c_fin_wait_1)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_fin_wait_1 */
-accept_init:
-T0_init:
-	if
-	:: ((c_fin_wait_1)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* c_established_connection */
-accept_init:
-T0_init:
-	if
-	:: ((c_established_connection)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_last_ack */
-accept_init:
-T0_init:
-	if
-	:: ((s_last_ack)) -> goto accept_all
-	fi;
-accept_all:
-	skip
-}
-never  {    /* s_close_wait */
-accept_init:
-T0_init:
-	if
-	:: ((s_close_wait)) -> goto accept_all
-	fi;
-accept_all:
-	skip
 }
