@@ -83,15 +83,15 @@ int sstate, cstate;
 proctype Client ()
 {
   mtype ctl;
-  int seq = 100;
-  int ack = 0;
-  int null;
+  int seq = 100;                /* sequence number for this process */
+  int ack = 0;                  /* ack number for remote process */
+  int null;                     /* throwaway variable for channels */
 
+  /* store the last message, sequence number, and ack received */
   int msg,inseq,inack;
 
-  int l_msg;
-  int l_seq;
-  int l_ack;
+  /* store the last message, sequence number, and ack for resending */
+  int l_msg, l_seq, l_ack;
 
   closed:
     cstate = CLOSED;
@@ -305,15 +305,15 @@ proctype Client ()
 proctype Server ()
 {
   mtype ctl;
-  int seq = 300;
-  int ack = 0;
-  int null;
-
+  int seq = 300;                /* sequence number for this process */
+  int ack = 0;                  /* ack numbe for remote process */
+  int null;                     /* throwaway variable for channels */
+  
+  /* store last message, sequence number, and ack number received */
   int msg, inseq, inack;
 
-  int l_msg;
-  int l_seq;
-  int l_ack;
+  /* store last message, sequence number, and ack number sent */
+  int l_msg, l_seq, l_ack;
 
   closed:
     sstate = CLOSED;
