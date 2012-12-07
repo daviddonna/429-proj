@@ -99,7 +99,7 @@ proctype Client ()
 
     if
 
-    /* connect / SYN */
+    /* connect / SYN -> syn_sent */
     :: (c_do_connect) ->
        c_do_connect = 0;
        printf("c: initial connection\n");
@@ -117,11 +117,11 @@ proctype Client ()
     printf("c: listen %d\n", seq);
     if
 
-    /* close / -- */
+    /* close / -- -> closed*/
     :: (c_do_close) ->
        goto closed;
 
-    /* send / SYN */
+    /* send / SYN -> syn_sent */
     :: (c_do_send) ->
        printf("--> SYN %d %d\n", seq, ack);
        toserver!SYN,seq,ack;
@@ -139,14 +139,14 @@ proctype Client ()
        assert(msg == SYN_ACK || msg == SYN);
        if
 
-       /* SYN + ACK / ACK */
+       /* SYN + ACK / ACK -> established*/
        :: (msg == SYN_ACK) ->
           ack = inseq + 1;
           printf("--> ACK %d %d\n", seq, ack);
           toserver!ACK,seq,ack;
           goto established;
 
-       /* SYN / SYN + ACK */
+       /* SYN / SYN + ACK -> syn_received */
        :: (msg == SYN) ->
           ack = inseq + 1;
           printf("--> SYN_ACK %d %d\n", seq, ack);
@@ -164,14 +164,14 @@ proctype Client ()
     printf("c: syn_received %d\n", seq);
     if
 
-    /* RST / -- */
+    /* RST / -- -> listen */
     :: toclient?msg,inseq,inack ->
        assert(inack == seq);
        assert(msg == RST);
        ack = inseq + 1;
        goto listen;
 
-    /* close / FIN */
+    /* close / FIN -> fin_wait_1 */
     :: (c_do_close) ->
        printf("--> FIN %d %d\n", seq, ack);
        toserver!FIN,seq,ack;
@@ -185,7 +185,7 @@ proctype Client ()
     printf("c: established %d\n", seq);
     if
 
-    /* close / FIN */
+    /* close / FIN -> fin_wait_1 */
     :: (c_do_close) ->
        printf("--> FIN %d %d\n", seq, ack);
        toserver!FIN,seq,ack;
@@ -200,7 +200,7 @@ proctype Client ()
        seq++;
        if
 
-       /* ACK / -- */
+       /* ACK / -- -> established */
        :: toclient?msg,inseq,inack ->
           assert(inack == seq);
           assert(msg == ACK);
@@ -208,7 +208,7 @@ proctype Client ()
           c_do_close = 1;
           goto established;
 
-       /* resend on timeout */
+       /* resend on timeout -> established */
        :: timeout ->
           printf("resending\n");
           toserver!l_msg,l_seq,l_ack;
@@ -226,18 +226,18 @@ proctype Client ()
        assert(msg == ACK || msg == FIN);
        if
 
-       /* ACK / -- */
+       /* ACK / -- -> fin_wait_2 */
        :: (msg == ACK) ->
           ack = inseq;
           goto fin_wait_2;
 
-       /* FIN / ACK */
+       /* FIN / ACK -> closing */
        :: (msg == FIN) ->
           ack = inseq + 1;
           toserver!ACK,seq,ack;
           goto closing;
 
-       /* FIN / FIN + ACK */
+       /* FIN / FIN + ACK -> time_wait */
        :: (msg == FIN) ->
           ack = inseq + 1;
           toserver!FIN_ACK,seq,ack;
@@ -252,7 +252,7 @@ proctype Client ()
     printf("c: fin_wait_2 %d\n", seq);
     if
 
-    /* FIN / ACK */
+    /* FIN / ACK -> time_wait */
     :: toclient?msg,inseq,inack ->
        assert(inack == seq);
        assert(msg == FIN);
@@ -272,7 +272,7 @@ proctype Client ()
     printf("c: closing %d\n", seq);
     if
 
-    /* ACK / -- */
+    /* ACK / -- -> time_wait */
     :: toclient?msg,inseq,inack ->
        assert(inack == seq);
        assert(msg == ACK);
@@ -290,7 +290,7 @@ proctype Client ()
     printf("c: time_wait %d\n", seq);
     if
 
-    /* timeout / ACK */
+    /* timeout / ACK -> closed */
     :: (c_timeout) -> 
        toserver!ACK,ack,seq;
        goto closed;
