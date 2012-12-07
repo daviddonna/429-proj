@@ -10,6 +10,30 @@
 #define LAST_ACK      9
 #define TIME_WAIT     10
 
+#define c_closed cstate == CLOSED
+#define c_listen cstate == LISTEN
+#define c_syn_sent cstate == SYN_SENT
+#define c_syn_received cstate == SYN_RECEIVED
+#define c_established cstate == ESTABLISHED
+#define c_fin_wait_1 cstate == FIN_WAIT_1
+#define c_fin_wait_2 cstate == FIN_WAIT_2
+#define c_close_wait cstate == CLOSE_WAIT
+#define c_closing cstate == CLOSING
+#define c_last_ack cstate == LAST_ACK
+#define c_time_wait cstate == TIME_WAIT
+
+#define s_closed sstate == CLOSED
+#define s_listen sstate == LISTEN
+#define s_syn_sent sstate == SYN_SENT
+#define s_syn_received sstate == SYN_RECEIVED
+#define s_established sstate == ESTABLISHED
+#define s_fin_wait_1 sstate == FIN_WAIT_1
+#define s_fin_wait_2 sstate == FIN_WAIT_2
+#define s_close_wait sstate == CLOSE_WAIT
+#define s_closing sstate == CLOSING
+#define s_last_ack sstate == LAST_ACK
+#define s_time_wait sstate == TIME_WAIT
+
 mtype = {
       SYN,
       FIN,
@@ -27,7 +51,6 @@ mtype = {
    c!BAR,ack,seq;
    seq++;                // only if BAR <> ACK
  */
-
 
 /*                       CTL    SEQ  ACK */
 chan toclient = [1] of { mtype, int, int }
@@ -336,4 +359,157 @@ init
 {
   run Client();
   run Server();
+}
+never  {    /* c_close_wait */
+accept_init:
+T0_init:
+	if
+	:: ((c_close_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_last_ack */
+accept_init:
+T0_init:
+	if
+	:: ((c_last_ack)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_fin_wait_1 */
+accept_init:
+T0_init:
+	if
+	:: ((s_fin_wait_1)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_fin_wait_2 */
+accept_init:
+T0_init:
+	if
+	:: ((s_fin_wait_2)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_closing */
+accept_init:
+T0_init:
+	if
+	:: ((s_closing)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_time_wait */
+accept_init:
+T0_init:
+	if
+	:: ((s_time_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* cclosed */
+accept_init:
+T0_init:
+	if
+	:: ((cclosed)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* sclosed */
+accept_init:
+T0_init:
+	if
+	:: ((sclosed)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_time_wait */
+accept_init:
+T0_init:
+	if
+	:: ((c_time_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_time_wait */
+accept_init:
+T0_init:
+	if
+	:: ((c_time_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_time_wait */
+accept_init:
+T0_init:
+	if
+	:: ((c_time_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_fin_wait_2 */
+accept_init:
+T0_init:
+	if
+	:: ((c_fin_wait_2)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_fin_wait_1 */
+accept_init:
+T0_init:
+	if
+	:: ((c_fin_wait_1)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_fin_wait_1 */
+accept_init:
+T0_init:
+	if
+	:: ((c_fin_wait_1)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* c_established_connection */
+accept_init:
+T0_init:
+	if
+	:: ((c_established_connection)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_last_ack */
+accept_init:
+T0_init:
+	if
+	:: ((s_last_ack)) -> goto accept_all
+	fi;
+accept_all:
+	skip
+}
+never  {    /* s_close_wait */
+accept_init:
+T0_init:
+	if
+	:: ((s_close_wait)) -> goto accept_all
+	fi;
+accept_all:
+	skip
 }
