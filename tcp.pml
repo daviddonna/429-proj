@@ -101,7 +101,7 @@ proctype Client ()
 
     /* connect / SYN -> syn_sent */
     :: (c_do_connect) ->
-       c_do_connect = 0;
+       c_do_connect = 0; c_do_exit = 1;
        printf("c: initial connection\n");
        toserver!SYN,seq,0;
        printf("--> SYN %d %d\n", seq, ack);
@@ -321,14 +321,14 @@ proctype Server ()
     
     if
 
-    /* list / -- */
+    /* listen / -- */
     :: (s_do_listen) ->
-       s_do_listen = 0;
+       s_do_listen = 0; s_do_exit = 1;
        goto listen;
 
     /* connect / SYN */
     :: (s_do_connect) ->
-       s_do_connect = 0;
+       s_do_connect = 0; s_do_exit = 1;
        printf("<-- %d %d\n", seq, ack);
        toclient!SYN,seq,ack;
        seq++;
